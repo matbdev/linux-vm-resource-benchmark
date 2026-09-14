@@ -1,0 +1,29 @@
+{
+  "experiment": {
+    "family": "fedora",
+    "distribution": "fedora",
+    "vm": "fedora",
+    "input_file": "/home/matbdev/benchmark/benchmark_input.mp4",
+    "input_sha256": "cb08f335d0e96a41e967f8d19eb99c4db4b4ac9cb6ffaa228641776b6e82dcb3",
+    "warmups": 2,
+    "measured_runs": 10,
+    "sample_interval_s": 1.0,
+    "cooldown_s": 3.0,
+    "ffmpeg_threads": 4,
+    "ffmpeg_workload": "H.264/libx264, preset=medium, crf=23, sem audio",
+    "warmups_in_summary": false
+  },
+  "system": {
+    "captured_at_utc": "2026-09-14T00:49:28+00:00",
+    "os_pretty_name": "Fedora Linux 44 (Workstation Edition)",
+    "os_id": "fedora",
+    "os_version_id": "44",
+    "kernel": "7.2.4-200.fc44.x86_64",
+    "architecture": "x86_64",
+    "python": "3.14.7",
+    "logical_cpu_count": 4,
+    "physical_cpu_count": 4,
+    "memory_total_mb": 7922.71,
+    "ffmpeg_version": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  }
+}

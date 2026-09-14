@@ -1,0 +1,40 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+.zed/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VM images
+*.qcow2
+*.qcow
+*.vdi
+*.vmdk
+*.img
+
+# Installation media
+*.iso
+
+# Archives
+*.tar.gz
+*.zip
+
+# Generated benchmark input
+benchmark_input.mp4
+
+# Temporary files
+*.tmp
+*.log
+*.part
+
+# Local caches
+.cache/

@@ -1,0 +1,9 @@
+,,process_cpu_mean_percent,process_cpu_mean_percent,process_cpu_mean_percent,process_cpu_mean_percent,system_cpu_mean_percent,system_cpu_mean_percent,system_cpu_mean_percent,system_cpu_mean_percent,process_rss_mean_mb,process_rss_mean_mb,process_rss_mean_mb,process_rss_mean_mb,system_memory_used_mean_mb,system_memory_used_mean_mb,system_memory_used_mean_mb,system_memory_used_mean_mb
+,,mean,std,min,max,mean,std,min,max,mean,std,min,max,mean,std,min,max
+family,distribution,,,,,,,,,,,,,,,,
+arch,arch-linux,331.556,3.694,328.11,340.26,81.987,0.999,81.07,84.31,295.48,3.839,289.663,300.544,703.584,9.658,681.273,715.143
+arch,endeavouros,328.277,1.449,325.67,330.2,81.161,0.358,80.54,81.68,294.496,2.504,291.259,298.658,794.709,9.822,780.091,812.942
+debian,debian,323.975,1.504,322.26,326.02,80.911,0.388,80.45,81.4,312.74,1.106,311.208,314.852,739.449,6.742,728.188,751.586
+debian,ubuntu,325.829,2.735,321.34,330.93,81.538,0.679,80.44,82.81,283.254,0.212,282.859,283.532,834.855,5.56,826.735,841.473
+fedora,bazzite,332.826,3.841,330.43,342.47,82.462,0.958,81.88,84.86,275.442,0.217,275.007,275.701,971.442,11.44,954.164,992.459
+fedora,fedora,327.12,1.268,324.87,329.78,80.931,0.34,80.45,81.68,271.47,0.221,271.039,271.689,849.038,7.983,835.678,864.049
