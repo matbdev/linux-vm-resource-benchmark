@@ -172,7 +172,8 @@ The raw data is preserved without modification under `data/raw/`.
 ├── results/
 │   └── figures/
 │
-└── docs/
+└── experiment/
+    └── metodologia_experimento_vms.docx
 ```
 
 ## Reproducibility
@@ -180,13 +181,13 @@ The raw data is preserved without modification under `data/raw/`.
 The benchmark input can be generated using:
 
 ```bash
-python3 benchmark.py prepare-input
+python3 benchmark/benchmark.py prepare-input
 ```
 
 A benchmark execution can then be performed with:
 
 ```bash
-python3 benchmark.py run \
+python3 benchmark/benchmark.py run \
   --family debian \
   --distribution debian \
   --vm debian
