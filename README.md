@@ -2,13 +2,11 @@
 
 A controlled statistical experiment comparing resource consumption across six Linux distributions running the same workload under identical virtual machine configurations.
 
-The project was developed as part of a statistical data analysis study focused on collecting reproducible computational resource measurements.
+The project was developed for a statistical data analysis study. The primary analysis dataset uses the raw per-second measurements collected during the measured benchmark runs.
 
 ## Objective
 
 The experiment investigates how different Linux distributions behave when executing the same CPU-intensive workload under controlled virtualization conditions.
-
-The evaluated distributions are grouped into three Linux families:
 
 | Family | Distribution |
 |---|---|
@@ -19,7 +17,7 @@ The evaluated distributions are grouped into three Linux families:
 | Fedora-based | Fedora |
 | Fedora-based | Bazzite |
 
-The goal is not to establish a universal performance ranking between Linux distributions, but to compare their behavior under the specific controlled conditions of this experiment.
+The goal is not to establish a universal performance ranking between Linux distributions, but to describe and compare resource-use patterns under the specific conditions of this experiment.
 
 ## Experimental Environment
 
@@ -34,7 +32,7 @@ Virtualization stack:
 - libvirt
 - virt-manager
 
-Each virtual machine uses the same virtual hardware configuration:
+Each VM used the same virtual hardware configuration:
 
 | Resource | Configuration |
 |---|---|
@@ -47,26 +45,17 @@ Each virtual machine uses the same virtual hardware configuration:
 | Network | libvirt NAT |
 | CPU mode | host-passthrough |
 
-Only one VM was benchmarked at a time in order to minimize resource contention on the host.
+Only one VM was benchmarked at a time to reduce direct contention for host resources.
 
 ## Workload
 
-FFmpeg was selected as the benchmark workload because video encoding creates a reproducible computational task involving:
+FFmpeg with libx264 was used as the benchmark workload. Every distribution processed the same synthetic video input.
 
-- CPU usage
-- memory usage
-- multithreading
-- disk activity
-
-All distributions processed the same synthetic video input.
-
-The SHA-256 hash of the benchmark input was:
+SHA-256:
 
 ```text
 cb08f335d0e96a41e967f8d19eb99c4db4b4ac9cb6ffaa228641776b6e82dcb3
 ```
-
-This ensures that every VM processed exactly the same input data.
 
 ## Collection Method
 
@@ -75,80 +64,78 @@ Each distribution executed:
 ```text
 2 warm-up runs
 10 measured runs
+10 samples per measured run
+1 sample per second
 ```
 
-The warm-up executions were not included in the statistical sample.
+The warm-up runs are preserved in the raw data but excluded from the primary statistical analysis.
 
-Therefore:
+Primary sample size:
 
 ```text
-6 distributions × 10 measured runs = 60 valid observations
+6 distributions × 10 measured runs × 10 samples = 600 measured samples
 ```
 
-Additionally:
+The experiment also contains 60 measured run summaries:
 
 ```text
-6 distributions × 2 warm-ups = 12 warm-up executions
+6 distributions × 10 measured runs = 60 run summaries
 ```
 
-Total executions performed:
+A measured run therefore contributes 10 raw time-series observations to the primary dataset and one secondary run-level summary.
 
-```text
-72
-```
+The columns `run` and `sample` are retained in the processed dataset so the nested structure of the measurements remains explicit.
 
-Resource measurements were sampled once per second.
+## Statistical Unit Used in This Repository
 
-Each measured run produced:
+For the course analysis, the primary dataset is the set of **600 per-second measurements**.
 
-- one detailed time-series CSV;
-- one summarized observation in `summary.csv`.
+This differs from the earlier version of the repository, which used the 60 run-level summaries as the main analysis table.
 
-## Collected Metrics
+The 60 summaries are still preserved in `data/processed/all_runs.csv` because they are useful for reproducibility and secondary checks, but descriptive statistics, frequency distributions and figures are generated from the 600 raw measurements.
 
-The benchmark collected metrics including:
+The measurements inside the same run are sequential observations from the same execution. This dependence should be kept in mind when interpreting results or applying inferential methods.
+
+## Collected Sample Metrics
 
 ### CPU
 
-- mean FFmpeg process CPU usage;
-- peak FFmpeg process CPU usage;
-- mean system CPU usage;
-- peak system CPU usage.
+- FFmpeg process CPU usage;
+- total system CPU usage.
 
 ### Memory
 
-- mean FFmpeg RSS memory;
-- peak FFmpeg RSS memory;
-- mean total system memory usage;
-- peak total system memory usage.
+- FFmpeg RSS memory;
+- total system memory usage;
+- system memory percentage.
 
-### Execution
+### Execution context
 
-- elapsed time;
-- number of samples;
+- elapsed seconds within the run;
+- sample number;
 - thread count;
-- FFmpeg exit code.
+- 1-minute load average.
 
 ### I/O
 
-Logical and storage I/O metrics were also collected.
+Logical and storage I/O metrics are preserved in `all_samples.csv`.
 
-However, I/O instrumentation did not produce equivalent data for Debian and Ubuntu. These metrics are therefore preserved in the raw dataset but excluded from the primary comparative analysis.
+They are not part of the primary comparison because terminal-sample coverage is not equivalent across all environments.
 
 ## Data Validation
 
-The collected dataset was validated before analysis.
-
-The validation confirmed:
+The validation pipeline checks:
 
 - 6 distributions;
-- 10 valid executions per distribution;
-- 2 warm-up executions per distribution;
-- 60 valid observations;
-- identical CSV schemas;
+- 10 measured runs per distribution;
+- 2 warm-up runs per distribution;
+- 10 samples per measured run;
+- 100 measured samples per distribution;
+- 600 measured samples in total;
+- consistent schemas;
 - no empty measurement files;
-- identical input SHA-256 across every execution;
-- FFmpeg exit code `0` for every measured run.
+- identical benchmark input SHA-256;
+- FFmpeg exit code `0` for all measured runs.
 
 The raw data is preserved without modification under `data/raw/`.
 
@@ -159,32 +146,37 @@ The raw data is preserved without modification under `data/raw/`.
 ├── benchmark/
 │   ├── benchmark.py
 │   └── benchmark_input.sha256
-│
 ├── scripts/
 │   ├── prepare_analysis.py
 │   ├── analyze_results.py
-│   └── validation scripts
-│
+│   ├── validate.sh
+│   ├── validate_content.sh
+│   └── validate_header.sh
 ├── data/
 │   ├── raw/
 │   └── processed/
-│
+│       ├── all_runs.csv
+│       ├── all_samples.csv
+│       ├── analysis.csv
+│       ├── descriptive_by_distribution.csv
+│       ├── descriptive_main_metrics.csv
+│       ├── quick_summary.csv
+│       └── summary_table.csv
 ├── results/
 │   └── figures/
-│
 └── experiment/
     └── metodologia_experimento_vms.docx
 ```
 
 ## Reproducibility
 
-The benchmark input can be generated using:
+Generate the benchmark input:
 
 ```bash
 python3 benchmark/benchmark.py prepare-input
 ```
 
-A benchmark execution can then be performed with:
+Example benchmark execution:
 
 ```bash
 python3 benchmark/benchmark.py run \
@@ -193,66 +185,60 @@ python3 benchmark/benchmark.py run \
   --vm debian
 ```
 
-The default experiment configuration performs:
-
-```text
-2 warm-up runs
-10 measured runs
-1 sample per second
-```
-
-Examples for the other distributions:
+Other distributions:
 
 ```bash
-python3 benchmark.py run --family debian --distribution ubuntu --vm ubuntu
-
-python3 benchmark.py run --family arch --distribution arch-linux --vm arch
-
-python3 benchmark.py run --family arch --distribution endeavouros --vm endeavouros
-
-python3 benchmark.py run --family fedora --distribution fedora --vm fedora
-
-python3 benchmark.py run --family fedora --distribution bazzite --vm bazzite
+python3 benchmark/benchmark.py run --family debian --distribution ubuntu --vm ubuntu
+python3 benchmark/benchmark.py run --family arch --distribution arch-linux --vm arch
+python3 benchmark/benchmark.py run --family arch --distribution endeavouros --vm endeavouros
+python3 benchmark/benchmark.py run --family fedora --distribution fedora --vm fedora
+python3 benchmark/benchmark.py run --family fedora --distribution bazzite --vm bazzite
 ```
 
-## Dataset Preparation
+## Prepare the 600-Sample Dataset
 
-After collecting the results, the datasets can be validated and consolidated with:
+Run:
 
 ```bash
-python scripts/prepare_analysis.py
+python3 scripts/prepare_analysis.py
 ```
 
-This generates:
+Generated files:
 
-```text
-all_runs.csv
-analysis.csv
-descriptive_by_distribution.csv
-quick_summary.csv
+- `all_runs.csv`: the 60 run-level summaries;
+- `all_samples.csv`: all 600 raw measured samples, including I/O fields;
+- `analysis.csv`: the 600 samples with the comparable variables used in the primary analysis;
+- `descriptive_by_distribution.csv`: sample-level descriptive statistics;
+- `quick_summary.csv`: compact sample-level comparison by distribution.
+
+## Generate Analysis and Figures
+
+Run:
+
+```bash
+python3 scripts/analyze_results.py
 ```
 
-`all_runs.csv` preserves all collected metrics.
+This creates sample-level descriptive tables and several figure types:
 
-`analysis.csv` contains only metrics considered directly comparable across all six environments.
+- boxplots by distribution;
+- mean ± standard-deviation bar charts;
+- histograms for frequency distributions;
+- temporal profiles across the 10 samples of each run.
 
-## Preliminary Analysis
+## Important Detail About the Final Sample
 
-Initial descriptive analysis indicates that repeated executions were highly stable.
+The last measurement of a run can capture the FFmpeg process finishing. For that reason, the final raw sample may contain a much lower process CPU value, fewer threads, or `0` MB of process RSS.
 
-The six distributions showed relatively small differences in CPU utilization, while larger differences were observed in total system memory consumption.
-
-These observations are preliminary and should not be interpreted as universal Linux distribution performance rankings.
-
-Further statistical analysis will be performed separately.
+These observations are not removed from the 600-sample dataset. The course analysis is intended to use the raw measurements, so all ten measured samples from every valid run are retained.
 
 ## Methodological Limitation
 
-The ten executions of each distribution are repeated measurements of a single VM installation.
+The 600 observations are not 600 independent benchmark executions.
 
-They are not ten independent physical machines or ten independently installed systems.
+They are 10 sequential measurements nested inside each of 60 measured runs, and those 60 runs are repeated measurements of one VM installation per distribution.
 
-Therefore, conclusions apply to the experimental environment used in this study and should not be generalized to all systems running these distributions.
+This structure is appropriate for the requested descriptive analysis, but it must be considered before making inferential or broadly generalizable claims.
 
 ## Technologies
 
@@ -272,9 +258,10 @@ Therefore, conclusions apply to the experimental environment used in this study 
 Data collection: **complete**
 
 ```text
-60 valid benchmark executions
-12 warm-up executions
+600 measured samples
+60 measured benchmark runs
+12 warm-up runs
 6 Linux distributions
 ```
 
-Statistical analysis: **in progress**
+Primary descriptive analysis: **sample-level (n = 600)**
