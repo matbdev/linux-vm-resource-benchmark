@@ -14,22 +14,31 @@ DISTROS=(
   ubuntu
 )
 
-REFERENCE=""
+REFERENCE_SAMPLE=""
+REFERENCE_SUMMARY=""
 
 for distro in "${DISTROS[@]}"; do
-    FILE="$RAW/$distro/summary.csv"
-    HEADER="$(head -n 1 "$FILE")"
+    SUMMARY_FILE="$RAW/$distro/summary.csv"
+    SUMMARY_HEADER="$(head -n 1 "$SUMMARY_FILE")"
 
-    echo "$distro:"
-    echo "$HEADER"
-    echo
-
-    if [[ -z "$REFERENCE" ]]; then
-        REFERENCE="$HEADER"
-    elif [[ "$HEADER" != "$REFERENCE" ]]; then
-        echo "ERROR: header mismatch detected in $distro"
+    if [[ -z "$REFERENCE_SUMMARY" ]]; then
+        REFERENCE_SUMMARY="$SUMMARY_HEADER"
+    elif [[ "$SUMMARY_HEADER" != "$REFERENCE_SUMMARY" ]]; then
+        echo "ERROR: summary.csv header mismatch detected in $distro"
         exit 1
     fi
+
+    for file in "$RAW/$distro"/runs/run_*.csv; do
+        HEADER="$(head -n 1 "$file")"
+
+        if [[ -z "$REFERENCE_SAMPLE" ]]; then
+            REFERENCE_SAMPLE="$HEADER"
+        elif [[ "$HEADER" != "$REFERENCE_SAMPLE" ]]; then
+            echo "ERROR: sample header mismatch detected in $file"
+            exit 1
+        fi
+    done
 done
 
 echo "All summary.csv files use the same schema."
+echo "All measured run CSV files use the same sample schema."
