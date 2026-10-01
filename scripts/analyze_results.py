@@ -46,11 +46,18 @@ LABELS = {
     "bazzite": "Bazzite",
 }
 
+FAMILY_ORDER = ["debian", "arch", "fedora"]
+FAMILY_LABELS = {
+    "debian": "Debian",
+    "arch": "Arch",
+    "fedora": "Fedora",
+}
+
 METRICS = {
-    "process_cpu_percent": "FFmpeg CPU usage (%)",
-    "system_cpu_percent": "System CPU usage (%)",
-    "process_rss_mb": "FFmpeg RSS memory (MB)",
-    "system_memory_used_mb": "System memory usage (MB)",
+    "process_cpu_percent": "Uso de CPU do FFmpeg (%)",
+    "system_cpu_percent": "Uso de CPU do sistema (%)",
+    "process_rss_mb": "Memória RSS do FFmpeg (MB)",
+    "system_memory_used_mb": "Memória utilizada pelo sistema (MB)",
 }
 
 HISTOGRAM_METRICS = [
@@ -71,13 +78,65 @@ def coefficient_of_variation(series: pd.Series) -> float:
     return series.std(ddof=1) / mean * 100
 
 
+def descriptive_by_group(
+    data: pd.DataFrame,
+    group_column: str,
+    metric: str,
+    order: list[str],
+    labels: dict[str, str],
+) -> pd.DataFrame:
+    """Return descriptive statistics for one metric grouped by a categorical field."""
+    records = []
+
+    for group_value in order:
+        values = data.loc[data[group_column] == group_value, metric]
+        records.append(
+            {
+                group_column: group_value,
+                f"{group_column}_label": labels[group_value],
+                "n": values.count(),
+                "mean": values.mean(),
+                "median": values.median(),
+                "std": values.std(ddof=1),
+                "cv_percent": coefficient_of_variation(values),
+                "min": values.min(),
+                "max": values.max(),
+            }
+        )
+
+    return pd.DataFrame(records)
+
+
+def save_mean_std_bar(
+    stats: pd.DataFrame,
+    label_column: str,
+    title: str,
+    ylabel: str,
+    filename: str,
+) -> None:
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.bar(
+        stats[label_column],
+        stats["mean"],
+        yerr=stats["std"],
+        capsize=5,
+    )
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel("Distribuição" if label_column == "distribution_label" else "Família")
+    ax.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(FIGURES / filename, dpi=200)
+    plt.close(fig)
+
+
 if len(df) != 600:
-    raise ValueError(f"Expected 600 sample observations, found {len(df)}")
+    raise ValueError(f"Esperadas 600 observações, encontradas {len(df)}")
 
 counts = df.groupby("distribution").size().reindex(ORDER)
 if not (counts == 100).all():
     raise ValueError(
-        "Expected 100 sample observations per distribution, found:\n"
+        "Esperadas 100 observações por distribuição; encontrado:\n"
         f"{counts}"
     )
 
@@ -133,9 +192,12 @@ summary.insert(
 )
 summary.to_csv(PROCESSED / "summary_table.csv", index=False)
 
-print("\n=== SAMPLE-LEVEL SUMMARY (n=600) ===\n")
+print("\n=== RESUMO DAS 600 OBSERVAÇÕES ===\n")
 print(summary.round(2).to_string(index=False))
 
+# -----------------------------------------------------------------------------
+# Gráficos da análise principal — todos os textos visíveis em português
+# -----------------------------------------------------------------------------
 for metric, ylabel in METRICS.items():
     values = [
         df.loc[df["distribution"] == distro, metric]
@@ -143,13 +205,15 @@ for metric, ylabel in METRICS.items():
     ]
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.boxplot(
-        values,
-        tick_labels=[LABELS[distro] for distro in ORDER],
-    )
-    ax.set_title(f"{ylabel} by distribution — 100 samples each")
+    boxplot_labels = [LABELS[distro] for distro in ORDER]
+    try:
+        ax.boxplot(values, tick_labels=boxplot_labels)
+    except TypeError:
+        # Compatibilidade com Matplotlib 3.7 e 3.8.
+        ax.boxplot(values, labels=boxplot_labels)
+    ax.set_title(f"{ylabel} por distribuição — 100 amostras por sistema")
     ax.set_ylabel(ylabel)
-    ax.set_xlabel("Distribution")
+    ax.set_xlabel("Distribuição")
     ax.grid(axis="y", alpha=0.25)
     fig.tight_layout()
     fig.savefig(
@@ -172,9 +236,9 @@ for metric, ylabel in METRICS.items():
         yerr=grouped["std"],
         capsize=5,
     )
-    ax.set_title(f"{ylabel} — mean ± standard deviation")
+    ax.set_title(f"{ylabel} — média ± desvio padrão")
     ax.set_ylabel(ylabel)
-    ax.set_xlabel("Distribution")
+    ax.set_xlabel("Distribuição")
     ax.grid(axis="y", alpha=0.25)
     fig.tight_layout()
     fig.savefig(
@@ -188,9 +252,9 @@ for metric in HISTOGRAM_METRICS:
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.hist(df[metric], bins="sturges")
-    ax.set_title(f"Frequency distribution — {ylabel}")
+    ax.set_title(f"Distribuição de frequência — {ylabel}")
     ax.set_xlabel(ylabel)
-    ax.set_ylabel("Frequency")
+    ax.set_ylabel("Frequência")
     ax.grid(axis="y", alpha=0.25)
     fig.tight_layout()
     fig.savefig(
@@ -219,11 +283,11 @@ for metric in PROFILE_METRICS:
             label=LABELS[distribution],
         )
 
-    ax.set_title(f"Mean temporal profile — {ylabel}")
-    ax.set_xlabel("Sample within run")
+    ax.set_title(f"Perfil temporal médio — {ylabel}")
+    ax.set_xlabel("Amostra dentro da execução")
     ax.set_ylabel(ylabel)
     ax.set_xticks(range(1, 11))
-    ax.legend()
+    ax.legend(title="Distribuição")
     ax.grid(alpha=0.25)
     fig.tight_layout()
     fig.savefig(
@@ -232,6 +296,99 @@ for metric in PROFILE_METRICS:
     )
     plt.close(fig)
 
+# -----------------------------------------------------------------------------
+# ANÁLISES FINAIS
+# Duas análises com filtro/subconjunto + uma análise com agregação.
+# -----------------------------------------------------------------------------
+
+# Filtro comum às análises 1 e 2:
+# remove a 10ª amostra de cada execução, pois ela representa a fase de
+# encerramento do FFmpeg. O subconjunto resultante contém 540 observações.
+active = df[df["sample"] <= 9].copy()
+
+if len(active) != 540:
+    raise ValueError(
+        f"Esperadas 540 observações no subconjunto ativo, encontradas {len(active)}"
+    )
+
+# Análise 1 — filtro/subconjunto: CPU do FFmpeg durante a fase ativa.
+active_cpu = descriptive_by_group(
+    active,
+    group_column="distribution",
+    metric="process_cpu_percent",
+    order=ORDER,
+    labels=LABELS,
+)
+active_cpu.to_csv(
+    PROCESSED / "subset_active_cpu_by_distribution.csv",
+    index=False,
+)
+save_mean_std_bar(
+    active_cpu,
+    label_column="distribution_label",
+    title="Uso de CPU do FFmpeg na fase ativa — amostras 1 a 9",
+    ylabel="Uso de CPU do FFmpeg (%)",
+    filename="filtered_active_process_cpu_percent.png",
+)
+
+# Análise 2 — filtro/subconjunto: memória do sistema durante a fase ativa.
+active_memory = descriptive_by_group(
+    active,
+    group_column="distribution",
+    metric="system_memory_used_mb",
+    order=ORDER,
+    labels=LABELS,
+)
+active_memory.to_csv(
+    PROCESSED / "subset_active_memory_by_distribution.csv",
+    index=False,
+)
+save_mean_std_bar(
+    active_memory,
+    label_column="distribution_label",
+    title="Memória do sistema na fase ativa — amostras 1 a 9",
+    ylabel="Memória utilizada pelo sistema (MB)",
+    filename="filtered_active_system_memory_used_mb.png",
+)
+
+# Análise 3 — agregação: memória do sistema agrupada por família Linux.
+family_memory = descriptive_by_group(
+    df,
+    group_column="family",
+    metric="system_memory_used_mb",
+    order=FAMILY_ORDER,
+    labels=FAMILY_LABELS,
+)
+family_memory.to_csv(
+    PROCESSED / "aggregate_system_memory_by_family.csv",
+    index=False,
+)
+save_mean_std_bar(
+    family_memory,
+    label_column="family_label",
+    title="Memória utilizada pelo sistema por família Linux",
+    ylabel="Memória utilizada pelo sistema (MB)",
+    filename="aggregate_system_memory_by_family.png",
+)
+
+print("\n=== ANÁLISES FINAIS ===\n")
+print("Filtro aplicado às análises 1 e 2: sample <= 9")
+print(f"Observações no subconjunto ativo: {len(active)}")
+print("\n1) CPU do FFmpeg por distribuição — subconjunto ativo")
+print(active_cpu.round(2).to_string(index=False))
+print("\n2) Memória do sistema por distribuição — subconjunto ativo")
+print(active_memory.round(2).to_string(index=False))
+print("\n3) Memória do sistema agregada por família Linux")
+print(family_memory.round(2).to_string(index=False))
+
+print("\nArquivos adicionais gerados:")
+print(f"- {PROCESSED / 'subset_active_cpu_by_distribution.csv'}")
+print(f"- {PROCESSED / 'subset_active_memory_by_distribution.csv'}")
+print(f"- {PROCESSED / 'aggregate_system_memory_by_family.csv'}")
+print(f"- {FIGURES / 'filtered_active_process_cpu_percent.png'}")
+print(f"- {FIGURES / 'filtered_active_system_memory_used_mb.png'}")
+print(f"- {FIGURES / 'aggregate_system_memory_by_family.png'}")
+
 print()
-print(f"Figures generated in: {FIGURES}")
-print("Analysis uses all 600 measured samples.")
+print(f"Figuras geradas em: {FIGURES}")
+print("A análise principal utiliza as 600 amostras medidas.")
