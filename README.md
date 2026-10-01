@@ -161,7 +161,10 @@ The raw data is preserved without modification under `data/raw/`.
 │       ├── descriptive_by_distribution.csv
 │       ├── descriptive_main_metrics.csv
 │       ├── quick_summary.csv
-│       └── summary_table.csv
+│       ├── summary_table.csv
+│       ├── subset_active_cpu_by_distribution.csv
+│       ├── subset_active_memory_by_distribution.csv
+│       └── aggregate_system_memory_by_family.csv
 ├── results/
 │   └── figures/
 └── experiment/
@@ -209,7 +212,12 @@ Generated files:
 - `all_samples.csv`: all 600 raw measured samples, including I/O fields;
 - `analysis.csv`: the 600 samples with the comparable variables used in the primary analysis;
 - `descriptive_by_distribution.csv`: sample-level descriptive statistics;
-- `quick_summary.csv`: compact sample-level comparison by distribution.
+- `quick_summary.csv`: compact sample-level comparison by distribution;
+- `subset_active_cpu_by_distribution.csv`: CPU statistics by distribution for the active phase (`sample <= 9`);
+- `subset_active_memory_by_distribution.csv`: system-memory statistics by distribution for the active phase (`sample <= 9`);
+- `aggregate_system_memory_by_family.csv`: system-memory statistics aggregated by Linux family.
+
+The filtered active-phase datasets contain 540 observations: 90 samples from each distribution.
 
 ## Generate Analysis and Figures
 
@@ -219,18 +227,46 @@ Run:
 python3 scripts/analyze_results.py
 ```
 
-This creates sample-level descriptive tables and several figure types:
+The analysis script generates the descriptive tables and figures used in the statistical analysis.
+
+The primary figures include:
 
 - boxplots by distribution;
 - mean ± standard-deviation bar charts;
 - histograms for frequency distributions;
-- temporal profiles across the 10 samples of each run.
+- temporal profiles across sample positions 1–10.
+
+The final exploratory analyses also generate:
+
+- `filtered_active_process_cpu_percent.png`: mean CPU usage by distribution after filtering the terminal sample (`sample <= 9`);
+- `filtered_active_system_memory_used_mb.png`: mean system-memory usage by distribution for the same filtered subset;
+- `aggregate_system_memory_by_family.png`: mean system-memory usage aggregated by Linux family.
+
+The filtered CPU and memory figures are based on 540 observations, while the family aggregation uses all 600 observations.
+
+All visible figure titles, axis labels and legends are generated in Portuguese for use in the final academic report.
 
 ## Important Detail About the Final Sample
 
 The last measurement of a run can capture the FFmpeg process finishing. For that reason, the final raw sample may contain a much lower process CPU value, fewer threads, or `0` MB of process RSS.
 
-These observations are not removed from the 600-sample dataset. The course analysis is intended to use the raw measurements, so all ten measured samples from every valid run are retained.
+These observations are not removed from the primary 600-sample dataset. All ten measured samples from every valid run remain available for the main descriptive analysis.
+
+A secondary filtered subset is also created using:
+
+```text
+sample <= 9
+```
+
+This removes only the tenth sample of each of the 60 measured runs, producing:
+
+```text
+6 distributions × 10 runs × 9 active samples = 540 observations
+```
+
+The purpose of this subset is to describe CPU and memory behavior during the active phase of the workload without the terminal measurement. It does not replace or modify the original 600-observation dataset.
+
+Comparing the complete dataset with this filtered subset also makes it possible to evaluate how strongly the termination phase affects measures of dispersion.
 
 ## Methodological Limitation
 
